@@ -77,7 +77,7 @@ public class ProguardTask extends BaritoneGradleTask {
         cleanup();
     }
 
-    UniminedExtension ext = getProject().getExtensions().getByType(UniminedExtension.class);
+    UniminedExtension  ext        = getProject().getExtensions().getByType(UniminedExtension.class);
     SourceSetContainer sourceSets = getProject().getExtensions().getByType(SourceSetContainer.class);
 
     private File getMcJar() {
@@ -108,7 +108,7 @@ public class ProguardTask extends BaritoneGradleTask {
     private void extractProguard() throws Exception {
         Path proguardJar = getTemporaryFile(PROGUARD_JAR);
         if (!Files.exists(proguardJar)) {
-            ZipFile zipFile = new ZipFile(getTemporaryFile(PROGUARD_ZIP).toFile());
+            ZipFile  zipFile     = new ZipFile(getTemporaryFile(PROGUARD_ZIP).toFile());
             ZipEntry zipJarEntry = zipFile.getEntry(this.extract);
             write(zipFile.getInputStream(zipJarEntry), proguardJar);
             zipFile.close();
@@ -137,7 +137,7 @@ public class ProguardTask extends BaritoneGradleTask {
         }
 
         throw new Exception("Unable to find java to determine ProGuard libraryjars. Please specify forkOptions.executable in javaCompile," +
-                " JAVA_HOME environment variable, or make sure to run Gradle with the correct JDK (a v1.8 only)");
+                                    " JAVA_HOME environment variable, or make sure to run Gradle with the correct JDK (a v1.8 only)");
     }
 
     private String findJavaByGradleCurrentRuntime() {
@@ -201,13 +201,15 @@ public class ProguardTask extends BaritoneGradleTask {
         template.add(0, "-injars '" + this.artifactPath.toString() + "'");
         template.add(1, "-outjars '" + this.getTemporaryFile(PROGUARD_EXPORT_PATH) + "'");
 
-        template.add(2, "-libraryjars  <java.home>/jmods/java.base.jmod(!**.jar;!module-info.class)");
-        template.add(3, "-libraryjars  <java.home>/jmods/java.desktop.jmod(!**.jar;!module-info.class)");
-        template.add(4, "-libraryjars  <java.home>/jmods/jdk.unsupported.jmod(!**.jar;!module-info.class)");
+        String javaHome = getJavaBinPathForProguard();
+
+        template.add(2, "-libraryjars " + javaHome + "/jmods/java.base.jmod(!**.jar;!module-info.class)");
+        template.add(3, "-libraryjars " + javaHome + "/jmods/java.desktop.jmod(!**.jar;!module-info.class)");
+        template.add(4, "-libraryjars " + javaHome + "/jmods/jdk.unsupported.jmod(!**.jar;!module-info.class)");
 
         {
             final Stream<File> libraries;
-            File mcJar;
+            File               mcJar;
             try {
                 mcJar = getMcJar();
             } catch (Exception e) {
@@ -301,7 +303,7 @@ public class ProguardTask extends BaritoneGradleTask {
 
         // Make paths relative to work directory; fixes spaces in path to config, @"" doesn't work
         Path workingDirectory = getTemporaryFile("");
-        Path proguardJar = workingDirectory.relativize(getTemporaryFile(PROGUARD_JAR));
+        Path proguardJar      = workingDirectory.relativize(getTemporaryFile(PROGUARD_JAR));
         config = workingDirectory.relativize(config);
 
         // Honestly, if you still have spaces in your path at this point, you're SOL.
