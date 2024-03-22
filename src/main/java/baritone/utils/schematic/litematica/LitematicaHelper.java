@@ -51,7 +51,7 @@ public final class LitematicaHelper {
      * @return if there are loaded schematics.
      */
     public static boolean hasLoadedSchematic() {
-        return DataManager.getSchematicPlacementManager().getAllSchematicsPlacements().size() > 0;
+        return !DataManager.getSchematicPlacementManager().getAllSchematicsPlacements().isEmpty();
     }
 
     /**
@@ -114,40 +114,20 @@ public final class LitematicaHelper {
         Rotation rotation = LitematicaHelper.getRotation(i);
 
         //todo there has to be a better way to do this but i cant finde it atm
-        switch (mirror) {
-            case FRONT_BACK:
-            case LEFT_RIGHT:
-                switch ((mirror.ordinal() * 2 + rotation.ordinal()) % 4) {
-                    case 1:
-                        correctedOrigin = new Vec3i(x + (sz - mz), y + my, z + (sx - mx));
-                        break;
-                    case 2:
-                        correctedOrigin = new Vec3i(x + mx, y + my, z + (sz - mz));
-                        break;
-                    case 3:
-                        correctedOrigin = new Vec3i(x + mz, y + my, z + mx);
-                        break;
-                    default:
-                        correctedOrigin = new Vec3i(x + (sx - mx), y + my, z + mz);
-                        break;
-                }
-                break;
-            default:
-                switch (rotation) {
-                    case CLOCKWISE_90:
-                        correctedOrigin = new Vec3i(x + (sz - mz), y + my, z + mx);
-                        break;
-                    case CLOCKWISE_180:
-                        correctedOrigin = new Vec3i(x + (sx - mx), y + my, z + (sz - mz));
-                        break;
-                    case COUNTERCLOCKWISE_90:
-                        correctedOrigin = new Vec3i(x + mz, y + my, z + (sx - mx));
-                        break;
-                    default:
-                        correctedOrigin = new Vec3i(x + mx, y + my, z + mz);
-                        break;
-                }
-        }
+        correctedOrigin = switch (mirror) {
+            case FRONT_BACK, LEFT_RIGHT -> switch ((mirror.ordinal() * 2 + rotation.ordinal()) % 4) {
+                case 1 -> new Vec3i(x + (sz - mz), y + my, z + (sx - mx));
+                case 2 -> new Vec3i(x + mx, y + my, z + (sz - mz));
+                case 3 -> new Vec3i(x + mz, y + my, z + mx);
+                default -> new Vec3i(x + (sx - mx), y + my, z + mz);
+            };
+            default -> switch (rotation) {
+                case CLOCKWISE_90 -> new Vec3i(x + (sz - mz), y + my, z + mx);
+                case CLOCKWISE_180 -> new Vec3i(x + (sx - mx), y + my, z + (sz - mz));
+                case COUNTERCLOCKWISE_90 -> new Vec3i(x + mz, y + my, z + (sx - mx));
+                default -> new Vec3i(x + mx, y + my, z + mz);
+            };
+        };
         return correctedOrigin;
     }
 
