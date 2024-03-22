@@ -82,6 +82,11 @@ Have committed at least once a day from Aug 1, 2018, to Aug 1, 2019.
 
 1Leijurv3DWTrGAfmmiTphjhXLvQiHg7K2
 
+# To Run
+## IntelliJ
+### Notes:
+- The run will fail unless you first right click the `schematica_api` project and click `Build Module 'baritone.schematica_api'`.
+
 # Getting Started
 
 Here are some links to help to get started:
