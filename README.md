@@ -35,7 +35,7 @@ Land is valued based on its proximity to water and its flatness.
 ### 🏠 Owned Real Property
 **Gurt** will attempt to maximize the total value of real property it owns by building buildings, farms and roads within land it controls.
 
-- 🧱 **Gurt** values real estate based on the value of the materials they are constructed from.
+- 🧱 **Gurt** values real property based on the value of the materials they are constructed from.
 
 ### 💎 Stored Resources
 **Gurt** will attempt to maximize the value of its stored resources by going out and mining and storing valuable resources, attempting to maximize the efficiency of value obtained per time unit and unit of risk.
