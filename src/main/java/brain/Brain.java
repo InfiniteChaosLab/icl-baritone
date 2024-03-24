@@ -29,12 +29,40 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+// TODO: Implement Roles:
+// President
+// - Macro decision maker
+// - Inhabits Palace
+// Vice President
+// - Takes over the role of President in the event of their death, until they re-enter owned land.
+// - Inhabits bunker
+// Governor
+// - One per city
+// - Role of President, but for that city
+// Soldier
+// - Kills hostile entities that threaten any role
+// Builder
+// - Builds structures
+// Firefighter
+// - Puts out fires
+// Farmer
+// - Farms crops and animals
+// Scout
+// - Continually traverses owned land
+// - Tries to keep the time since a chunk was last completely observed as low as possible
+// Miner
+// - Obtains resources & stores them in storage facilities
+// Postie
+// - Delivers items to other roles
+// Journalist
+// - Records events
+
 public class Brain {
     private final Baritone baritone;
     private final Minecraft minecraft;
     private BigDecimal portfolioValue = BigDecimal.ZERO;
     private State currentState;
-    private State goalState;
+    public State goalState;
     private List<Action> actions;
     private Map<String, State> goalStates;
     private int currentTick = 0;
@@ -95,7 +123,7 @@ public class Brain {
     }
 
     private void firstRun() {
-        minecraft.getToasts().addToast(new HMD());
+        minecraft.getToasts().addToast(new HMD(this));
     }
 
     private void updateState() {
@@ -118,8 +146,7 @@ public class Brain {
     }
 
     private void createGoals() {
-        // Obtain full iron & have 20 🍗 units available.
-        State fullIron = new State("full_iron");
+        State fullIron = new State("full_iron", "Obtain Full Iron");
         fullIron.state.put("👕>= " + Items.IRON_HELMET, 1);
         fullIron.state.put("👕>= " + Items.IRON_CHESTPLATE, 1);
         fullIron.state.put("👕>= " + Items.IRON_LEGGINGS, 1);
@@ -127,8 +154,7 @@ public class Brain {
         fullIron.state.put("in_hotbar_>= " + Items.IRON_SWORD, 1);
         goalStates.put(fullIron.name, fullIron);
 
-        // Obtain full 💎 & have 20 🍗 units available.
-        State fullDiamond = new State("full_💎");
+        State fullDiamond = new State("full_💎", "Obtain Full Diamond");
         fullDiamond.state.put("👕>= " + Items.DIAMOND_HELMET, 1);
         fullDiamond.state.put("👕>= " + Items.DIAMOND_CHESTPLATE, 1);
         fullDiamond.state.put("👕>= " + Items.DIAMOND_LEGGINGS, 1);

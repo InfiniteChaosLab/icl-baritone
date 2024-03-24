@@ -22,10 +22,22 @@ import java.util.Map;
 
 public class State {
     public String name;
+    public String description = "Idle";
     public Map<String, Integer> state;
 
     public State(String name) {
         this.name = name;
         this.state = new HashMap<>();
+    }
+
+    public State(String name, String description) {
+        this.name = name;
+        this.description = description;
+        this.state = new HashMap<>();
+    }
+
+    @Override
+    public String toString() {
+        return description;
     }
 }
