@@ -40,9 +40,11 @@ public class Brain {
     public Brain(Baritone baritone) {
         this.baritone = baritone;
         this.currentState = new State("current_state");
+        this.goalState = new State("goal_state");
         this.goalStates = new HashMap<>();
+        createGoals();
         this.actions = new ArrayList<>();
-//        setGoal();
+        setGoal();
         baritone.getGameEventHandler().registerEventListener(new AbstractGameEventListener() {
             @Override
             public void onTick(TickEvent event) {
