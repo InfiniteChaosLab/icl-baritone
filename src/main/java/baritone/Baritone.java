@@ -25,7 +25,10 @@ import baritone.api.event.listener.IEventBus;
 import baritone.api.process.IBaritoneProcess;
 import baritone.api.process.IElytraProcess;
 import baritone.api.utils.IPlayerContext;
-import baritone.behavior.*;
+import baritone.behavior.InventoryBehavior;
+import baritone.behavior.LookBehavior;
+import baritone.behavior.PathingBehavior;
+import baritone.behavior.WaypointBehavior;
 import baritone.cache.WorldProvider;
 import baritone.command.manager.CommandManager;
 import baritone.event.GameEventHandler;
@@ -36,13 +39,12 @@ import baritone.utils.GuiClick;
 import baritone.utils.InputOverrideHandler;
 import baritone.utils.PathingControlManager;
 import baritone.utils.player.BaritonePlayerContext;
+import brain.Brain;
 import net.minecraft.client.Minecraft;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -87,6 +89,7 @@ public class Baritone implements IBaritone {
 
     private final IPlayerContext playerContext;
     private final WorldProvider worldProvider;
+    private final Brain brain;
 
     public BlockStateInterface bsi;
 
@@ -98,37 +101,39 @@ public class Baritone implements IBaritone {
         if (!Files.exists(this.directory)) {
             try {
                 Files.createDirectories(this.directory);
-            } catch (IOException ignored) {}
+            } catch (IOException ignored) {
+            }
         }
 
         // Define this before behaviors try and get it, or else it will be null and the builds will fail!
         this.playerContext = new BaritonePlayerContext(this, mc);
 
         {
-            this.lookBehavior         = this.registerBehavior(LookBehavior::new);
-            this.pathingBehavior      = this.registerBehavior(PathingBehavior::new);
-            this.inventoryBehavior    = this.registerBehavior(InventoryBehavior::new);
+            this.lookBehavior = this.registerBehavior(LookBehavior::new);
+            this.pathingBehavior = this.registerBehavior(PathingBehavior::new);
+            this.inventoryBehavior = this.registerBehavior(InventoryBehavior::new);
             this.inputOverrideHandler = this.registerBehavior(InputOverrideHandler::new);
             this.registerBehavior(WaypointBehavior::new);
         }
 
         this.pathingControlManager = new PathingControlManager(this);
         {
-            this.followProcess           = this.registerProcess(FollowProcess::new);
-            this.mineProcess             = this.registerProcess(MineProcess::new);
-            this.customGoalProcess       = this.registerProcess(CustomGoalProcess::new); // very high iq
-            this.getToBlockProcess       = this.registerProcess(GetToBlockProcess::new);
-            this.builderProcess          = this.registerProcess(BuilderProcess::new);
-            this.exploreProcess          = this.registerProcess(ExploreProcess::new);
-            this.farmProcess             = this.registerProcess(FarmProcess::new);
-            this.inventoryPauserProcess  = this.registerProcess(InventoryPauserProcess::new);
-            this.elytraProcess           = this.registerProcess(ElytraProcess::create);
+            this.followProcess = this.registerProcess(FollowProcess::new);
+            this.mineProcess = this.registerProcess(MineProcess::new);
+            this.customGoalProcess = this.registerProcess(CustomGoalProcess::new); // very high iq
+            this.getToBlockProcess = this.registerProcess(GetToBlockProcess::new);
+            this.builderProcess = this.registerProcess(BuilderProcess::new);
+            this.exploreProcess = this.registerProcess(ExploreProcess::new);
+            this.farmProcess = this.registerProcess(FarmProcess::new);
+            this.inventoryPauserProcess = this.registerProcess(InventoryPauserProcess::new);
+            this.elytraProcess = this.registerProcess(ElytraProcess::create);
             this.registerProcess(BackfillProcess::new);
         }
 
         this.worldProvider = new WorldProvider(this);
         this.selectionManager = new SelectionManager(this);
         this.commandManager = new CommandManager(this);
+        this.brain = new Brain(this);
     }
 
     public void registerBehavior(IBehavior behavior) {
@@ -246,7 +251,8 @@ public class Baritone implements IBaritone {
             try {
                 Thread.sleep(100);
                 mc.execute(() -> mc.setScreen(new GuiClick()));
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }).start();
     }
 

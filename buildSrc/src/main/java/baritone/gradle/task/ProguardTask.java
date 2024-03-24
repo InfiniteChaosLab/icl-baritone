@@ -77,7 +77,7 @@ public class ProguardTask extends BaritoneGradleTask {
         cleanup();
     }
 
-    UniminedExtension  ext        = getProject().getExtensions().getByType(UniminedExtension.class);
+    UniminedExtension ext = getProject().getExtensions().getByType(UniminedExtension.class);
     SourceSetContainer sourceSets = getProject().getExtensions().getByType(SourceSetContainer.class);
 
     private File getMcJar() {
@@ -108,7 +108,7 @@ public class ProguardTask extends BaritoneGradleTask {
     private void extractProguard() throws Exception {
         Path proguardJar = getTemporaryFile(PROGUARD_JAR);
         if (!Files.exists(proguardJar)) {
-            ZipFile  zipFile     = new ZipFile(getTemporaryFile(PROGUARD_ZIP).toFile());
+            ZipFile zipFile = new ZipFile(getTemporaryFile(PROGUARD_ZIP).toFile());
             ZipEntry zipJarEntry = zipFile.getEntry(this.extract);
             write(zipFile.getInputStream(zipJarEntry), proguardJar);
             zipFile.close();
@@ -136,8 +136,7 @@ public class ProguardTask extends BaritoneGradleTask {
             ex.printStackTrace();
         }
 
-        throw new Exception("Unable to find java to determine ProGuard libraryjars. Please specify forkOptions.executable in javaCompile," +
-                                    " JAVA_HOME environment variable, or make sure to run Gradle with the correct JDK (a v1.8 only)");
+        throw new Exception("Unable to find java to determine ProGuard libraryjars. Please specify forkOptions.executable in javaCompile," + " JAVA_HOME environment variable, or make sure to run Gradle with the correct JDK (a v1.8 only)");
     }
 
     private String findJavaByGradleCurrentRuntime() {
@@ -209,7 +208,7 @@ public class ProguardTask extends BaritoneGradleTask {
 
         {
             final Stream<File> libraries;
-            File               mcJar;
+            File mcJar;
             try {
                 mcJar = getMcJar();
             } catch (Exception e) {
@@ -283,7 +282,8 @@ public class ProguardTask extends BaritoneGradleTask {
     private void cleanup() {
         try {
             Files.delete(this.proguardOut);
-        } catch (IOException ignored) {}
+        } catch (IOException ignored) {
+        }
     }
 
     public void setUrl(String url) {
@@ -303,7 +303,7 @@ public class ProguardTask extends BaritoneGradleTask {
 
         // Make paths relative to work directory; fixes spaces in path to config, @"" doesn't work
         Path workingDirectory = getTemporaryFile("");
-        Path proguardJar      = workingDirectory.relativize(getTemporaryFile(PROGUARD_JAR));
+        Path proguardJar = workingDirectory.relativize(getTemporaryFile(PROGUARD_JAR));
         config = workingDirectory.relativize(config);
 
         // Honestly, if you still have spaces in your path at this point, you're SOL.
