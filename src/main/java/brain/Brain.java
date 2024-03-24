@@ -20,6 +20,7 @@ package brain;
 import baritone.Baritone;
 import baritone.api.event.events.TickEvent;
 import baritone.api.event.listener.AbstractGameEventListener;
+import net.minecraft.client.Minecraft;
 import net.minecraft.world.item.Items;
 
 import java.math.BigDecimal;
@@ -30,6 +31,7 @@ import java.util.Map;
 
 public class Brain {
     private final Baritone baritone;
+    private final Minecraft minecraft;
     private BigDecimal portfolioValue = BigDecimal.ZERO;
     private State currentState;
     private State goalState;
@@ -37,8 +39,9 @@ public class Brain {
     private Map<String, State> goalStates;
     private int currentTick = 0;
 
-    public Brain(Baritone baritone) {
+    public Brain(Baritone baritone, Minecraft minecraft) {
         this.baritone = baritone;
+        this.minecraft = minecraft;
         this.currentState = new State("current_state");
         this.goalState = new State("goal_state");
         this.goalStates = new HashMap<>();
@@ -62,7 +65,6 @@ public class Brain {
         }
         if (!goalMet(goalStates.get("full_💎"))) {
             goalState = goalStates.get("full_💎");
-            return;
         }
     }
 
@@ -80,15 +82,20 @@ public class Brain {
     }
 
     private void postTick() {
+        if (currentTick == 0) {
+            firstRun();
+        }
         updateState();
         if (currentTick % Time.toTicks(1, Time.SECOND) == 0) {
             System.out.println("Current state: ");
-            currentState.state.forEach((key, value) -> {
-                System.out.println(key + ": " + value);
-            });
+            currentState.state.forEach((key, value) -> System.out.println(key + ": " + value));
         }
 
         currentTick++;
+    }
+
+    private void firstRun() {
+        minecraft.getToasts().addToast(new HMD());
     }
 
     private void updateState() {
@@ -107,9 +114,7 @@ public class Brain {
         });
 
         // Update the currentState.state with the summed quantities
-        itemQuantities.forEach((itemName, quantity) -> {
-            currentState.state.put(itemName, quantity);
-        });
+        currentState.state.putAll(itemQuantities);
     }
 
     private void createGoals() {

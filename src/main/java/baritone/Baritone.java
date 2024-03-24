@@ -133,7 +133,7 @@ public class Baritone implements IBaritone {
         this.worldProvider = new WorldProvider(this);
         this.selectionManager = new SelectionManager(this);
         this.commandManager = new CommandManager(this);
-        this.brain = new Brain(this);
+        this.brain = new Brain(this, mc);
     }
 
     public void registerBehavior(IBehavior behavior) {
