@@ -43,7 +43,6 @@ Land is valued based on its proximity to water and its flatness.
 
 ### ℹ️ Fun Facts:
 - 💬 **Gurt** will chat the current total value of its portfolio every time it changes by a substantial amount.
-- 💵 The value of **Gurt's** Minecraft assets is calculated as if they were (very roughly!) real assets owned in the United States in 2024.
 - 🫳 If you steal or destroy **Gurt's** assets, it will not update its portfolio value until it notices they have gone or been destroyed. Like a human player, **Gurt** is only aware of what it can observe.
 
 ## How To Run Gurt

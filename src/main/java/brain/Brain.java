@@ -20,9 +20,13 @@ package brain;
 import baritone.Baritone;
 import baritone.api.event.events.TickEvent;
 import baritone.api.event.listener.AbstractGameEventListener;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.item.Items;
 
+import java.io.*;
+import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -60,12 +64,13 @@ import java.util.Map;
 public class Brain {
     private final Baritone baritone;
     private final Minecraft minecraft;
-    private BigDecimal portfolioValue = BigDecimal.ZERO;
+    public BigDecimal $ = BigDecimal.ZERO;
     private State currentState;
     public State goalState;
     private List<Action> actions;
     private Map<String, State> goalStates;
-    private int currentTick = 0;
+    public int currentTick = 0;
+    private final String ROOT_FOLDER = "../../../src/main/java/brain/";
 
     public Brain(Baritone baritone, Minecraft minecraft) {
         this.baritone = baritone;
@@ -132,6 +137,10 @@ public class Brain {
 
     private void updateInventoryState() {
         Map<String, Integer> itemQuantities = new HashMap<>();
+        final double[] totalValue = {0.0};
+
+        // Read the item values from the JSON file
+        Map<String, Double> itemValues = readItemValuesFromFile();
 
         baritone.getPlayerContext().player().getInventory().items.forEach(itemStack -> {
             String itemName = itemStack.getItem().toString();
@@ -139,10 +148,17 @@ public class Brain {
 
             // Add the quantity to the existing quantity for the item type, or initialize it if not present
             itemQuantities.merge(itemName, quantity, Integer::sum);
+
+            // Calculate the value of the item based on its quantity and value from the JSON file
+            double itemValue = itemValues.getOrDefault(itemName, 0.0) * quantity;
+            totalValue[0] += itemValue;
         });
 
         // Update the currentState.state with the summed quantities
         currentState.state.putAll(itemQuantities);
+
+        // Set the $ variable to the total value of the inventory
+        $ = BigDecimal.valueOf(totalValue[0]);
     }
 
     private void createGoals() {
@@ -161,5 +177,18 @@ public class Brain {
         fullDiamond.state.put("👕>= " + Items.DIAMOND_BOOTS, 1);
         fullDiamond.state.put("in_hotbar_>= " + Items.DIAMOND_SWORD, 1);
         goalStates.put(fullDiamond.name, fullDiamond);
+    }
+
+    private Map<String, Double> readItemValuesFromFile() {
+        String filePath = ROOT_FOLDER + "item_values.json";
+        try (FileReader reader = new FileReader(filePath)) {
+            Gson gson = new Gson();
+            Type type = new TypeToken<Map<String, Double>>() {
+            }.getType();
+            return gson.fromJson(reader, type);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return new HashMap<>();
+        }
     }
 }
