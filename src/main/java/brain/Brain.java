@@ -23,8 +23,11 @@ import baritone.api.event.listener.AbstractGameEventListener;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -76,11 +79,14 @@ public class Brain {
     State currentState;
     public State goalState;
     public List<Action> availableActions;
-    private List<Action> plan;
+    public List<Action> plan;
     private final Map<String, State> goalStates;
     public int currentTick = 0;
     private final String ROOT_FOLDER = "../../../src/main/java/brain/";
     private final GOAPPlanner planner;
+    private final Map<BlockPos, List<ItemEntity>> droppedItems = new HashMap<>();
+    private Map<BlockPos, Block> knownBlocks = new HashMap<>();
+
 
     public Brain(Baritone baritone, Minecraft minecraft) {
         this.baritone = baritone;
@@ -157,6 +163,30 @@ public class Brain {
                     ServerLevel level = Objects.requireNonNull(minecraft.getSingleplayerServer()).overworld();
                     BlockPos pos = BlockPos.ZERO;
 
+                    // Create the Action for mining the block with your hand
+                    Action mineActionWithHand = new Action("Mine " + block + " with hand");
+                    mineActionWithHand.action = "Mine " + block + " with hand";
+
+                    // Set the dependencies for mining the block with your hand
+                    mineActionWithHand.dependencies = new State();
+                    mineActionWithHand.dependencies.individualStates.put(StateTypes.SEE_BLOCK + " " + block, 1);
+
+                    // Set the effects for mining the block with your hand
+                    mineActionWithHand.results = new State();
+                    ItemStack emptyHand = ItemStack.EMPTY;
+                    List<ItemStack> handDrops = blockState.getDrops(new LootParams.Builder(level)
+                            .withParameter(LootContextParams.BLOCK_STATE, blockState)
+                            .withParameter(LootContextParams.ORIGIN, Vec3.atCenterOf(pos))
+                            .withParameter(LootContextParams.TOOL, emptyHand));
+                    for (ItemStack drop : handDrops) {
+                        Item item = drop.getItem();
+                        int count = drop.getCount();
+                        mineActionWithHand.results.individualStates.put(StateTypes.SEE_ITEM + " " + item, count);
+                    }
+
+                    // Add the mine action with hand to the list of available actions
+                    actions.add(mineActionWithHand);
+
                     for (Item tool : tools) {
                         LootParams.Builder builder = new LootParams.Builder(level);
                         builder.withParameter(LootContextParams.BLOCK_STATE, blockState);
@@ -212,10 +242,14 @@ public class Brain {
         if (currentTick == 0) {
             firstRun();
         }
-        updateState();
         if (currentTick % Time.toTicks(1, Time.SECOND) == 0) {
+            updateState();
             System.out.println("Current state: ");
             currentState.individualStates.forEach((key, value) -> System.out.println(key + ": " + value));
+        }
+        if (currentTick % Time.toTicks(3, Time.SECOND) == 0) {
+            plan = planner.plan();
+            System.out.println("Plan updated!");
         }
 
         currentTick++;
@@ -230,6 +264,8 @@ public class Brain {
 
     private void updateState() {
         updateInventoryState();
+        updateDroppedItemsState();
+        updateKnownBlocksState();
     }
 
     private void updateInventoryState() {
@@ -256,6 +292,63 @@ public class Brain {
 
         // Set the $ variable to the total value of the inventory
         $ = BigDecimal.valueOf(totalValue[0]);
+    }
+
+    private void updateDroppedItemsState() {
+        // Scan for dropped items
+        droppedItems.clear();
+        for (Entity entity : ((ClientLevel) baritone.getPlayerContext().world()).entitiesForRendering()) {
+            if (entity instanceof ItemEntity itemEntity) {
+                BlockPos blockPos = itemEntity.blockPosition();
+                droppedItems.computeIfAbsent(blockPos, k -> new ArrayList<>()).add(itemEntity);
+            }
+        }
+
+        // Clear the currentState.individualStates entries starting with StateTypes.SEE_ITEM
+        currentState.individualStates.keySet().removeIf(key -> key.startsWith(String.valueOf(StateTypes.SEE_ITEM)));
+
+        // Add the visible items and their quantities to currentState.individualStates
+        Map<Item, Integer> visibleItems = new HashMap<>();
+        for (List<ItemEntity> itemEntities : droppedItems.values()) {
+            for (ItemEntity itemEntity : itemEntities) {
+                Item item = itemEntity.getItem().getItem();
+                int quantity = itemEntity.getItem().getCount();
+                visibleItems.merge(item, quantity, Integer::sum);
+            }
+        }
+        for (Map.Entry<Item, Integer> entry : visibleItems.entrySet()) {
+            Item item = entry.getKey();
+            int quantity = entry.getValue();
+            currentState.individualStates.put(StateTypes.SEE_ITEM + " " + item.toString(), quantity);
+        }
+    }
+
+    private void updateKnownBlocksState() {
+        // TODO: Update this so we keep track of all blocks we know of in the world, and set them to 0 if we notice in their previous location there now is nothing.
+        knownBlocks.clear();
+
+        // Iterate over the blocks in the world and add them to the knownBlocks map
+        ClientLevel world = (ClientLevel) baritone.getPlayerContext().world();
+        for (BlockPos pos : BlockPos.betweenClosed(
+                new BlockPos((int) (baritone.getPlayerContext().player().getX() - 128), 0, (int) (baritone.getPlayerContext().player().getZ() - 128)),
+                new BlockPos((int) (baritone.getPlayerContext().player().getX() + 128), 255, (int) (baritone.getPlayerContext().player().getZ() + 128)))) {
+            Block block = world.getBlockState(pos).getBlock();
+            knownBlocks.put(pos, block);
+        }
+
+        // Clear the existing StateTypes.SEE_BLOCK entries in currentState.individualStates
+        currentState.individualStates.keySet().removeIf(key -> key.startsWith(String.valueOf(StateTypes.SEE_BLOCK)));
+
+        // Count the occurrences of each block type and update currentState.individualStates
+        Map<Block, Integer> blockCounts = new HashMap<>();
+        for (Block block : knownBlocks.values()) {
+            blockCounts.merge(block, 1, Integer::sum);
+        }
+        for (Map.Entry<Block, Integer> entry : blockCounts.entrySet()) {
+            Block block = entry.getKey();
+            int count = entry.getValue();
+            currentState.individualStates.put(StateTypes.SEE_BLOCK + " " + block.toString(), count);
+        }
     }
 
     private void createGoals() {

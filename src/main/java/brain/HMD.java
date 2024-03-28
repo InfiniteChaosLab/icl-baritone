@@ -38,7 +38,7 @@ public class HMD implements Toast {
         w = window.getGuiScaledWidth();
         h = window.getGuiScaledHeight();
         drawName(minecraft, guiGraphics);
-        drawGoal(minecraft, guiGraphics);
+        drawGoalAndPlan(minecraft, guiGraphics);
         assert minecraft.player != null;
         // Check if neither the inventory screen nor the escape screen is open
         if (!(minecraft.screen instanceof InventoryScreen || minecraft.screen instanceof PauseScreen)) {
@@ -67,8 +67,15 @@ public class HMD implements Toast {
         guiGraphics.drawWordWrap(minecraft.font, text, x(0), y(0), w - (MARGIN * 2), textColor);
     }
 
-    private void drawGoal(Minecraft minecraft, GuiGraphics guiGraphics) {
-        guiGraphics.drawString(minecraft.font, "▶ " + brain.goalState.description, x(0), y(LINE_HEIGHT), textColor);
+    private void drawGoalAndPlan(Minecraft minecraft, GuiGraphics guiGraphics) {
+        int lineCount = 1;
+        guiGraphics.drawString(minecraft.font, "🎯 " + brain.goalState.description, x(0), y(LINE_HEIGHT * lineCount), textColor);
+        lineCount++;
+
+        for (Action action : brain.plan) {
+            guiGraphics.drawString(minecraft.font, "▶ " + action.action, x(8), y(LINE_HEIGHT * lineCount), textColor);
+            lineCount++;
+        }
     }
 
     private void drawFoodInformation(Minecraft minecraft, GuiGraphics guiGraphics) {

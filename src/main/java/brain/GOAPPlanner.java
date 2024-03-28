@@ -46,12 +46,17 @@ public class GOAPPlanner {
 
             // If the current node is the current state, return the path
             boolean goalNotMet = false;
-            for (Map.Entry<String, Integer> entry : currentNode.state.individualStates.entrySet()) {
-                String key = entry.getKey();
-                int value = entry.getValue();
-                if (brain.currentState.individualStates.getOrDefault(key, 0) < value) {
-                    goalNotMet = true;
+            // TODO: Add a way to detect if there are no actions because we have already met the goal.
+            if (currentNode.action != null) {
+                for (Map.Entry<String, Integer> entry : currentNode.action.dependencies.individualStates.entrySet()) {
+                    String key = entry.getKey();
+                    int value = entry.getValue();
+                    if (brain.currentState.individualStates.getOrDefault(key, 0) < value) {
+                        goalNotMet = true;
+                    }
                 }
+            } else {
+                goalNotMet = true;
             }
             if (!goalNotMet) {
                 return getPath(currentNode);
@@ -66,7 +71,7 @@ public class GOAPPlanner {
                 if (actionLeadsToState(currentNode.state, action)) {
                     // Apply the inverse of the action to the current state to get the previous state
                     State prevState = applyInverseAction(currentNode.state, action);
-
+                    System.out.println("Considering Action: " + action.action);
                     // If the previous state is already in the closed list, skip it
                     if (closedNodes.contains(prevState)) {
                         continue;
@@ -108,8 +113,10 @@ public class GOAPPlanner {
     }
 
     private static State applyInverseAction(State state, Action action) {
-        State prevState = new State(state.name);
+        State prevState = new State();
+        // TODO: Check thoroughly.
         prevState.individualStates.putAll(state.individualStates);
+        prevState.individualStates.putAll(action.dependencies.individualStates);
 
         // Apply the inverse of the action's effects to the new state
         for (Map.Entry<String, Integer> entry : action.results.individualStates.entrySet()) {
