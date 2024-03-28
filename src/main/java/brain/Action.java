@@ -18,7 +18,11 @@
 package brain;
 
 public class Action {
+    public Action(String action) {
+        this.action = action;
+    }
+
     public State dependencies;
-    public State effects;
+    public State results;
     public String action;
 }

@@ -17,31 +17,9 @@
 
 package brain;
 
-import java.util.HashMap;
-import java.util.Map;
-
-public class State {
-    public String name;
-    public String description = "";
-    public Map<String, Integer> individualStates;
-
-    public State() {
-        this.individualStates = new HashMap<>();
-    }
-
-    public State(String name) {
-        this.name = name;
-        this.individualStates = new HashMap<>();
-    }
-
-    public State(String name, String description) {
-        this.name = name;
-        this.description = description;
-        this.individualStates = new HashMap<>();
-    }
-
-    @Override
-    public String toString() {
-        return description;
-    }
+public enum StateTypes {
+    SEE_ITEM,
+    SEE_BLOCK,
+    WEARING_AT_LEAST,
+    IN_INVENTORY_AT_LEAST,
 }
