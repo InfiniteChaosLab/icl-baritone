@@ -71,7 +71,6 @@ public class GOAPPlanner {
                 if (actionLeadsToState(currentNode.state, action)) {
                     // Apply the inverse of the action to the current state to get the previous state
                     State prevState = applyInverseAction(currentNode.state, action);
-                    System.out.println("Considering Action: " + action.action);
                     // If the previous state is already in the closed list, skip it
                     if (closedNodes.contains(prevState)) {
                         continue;

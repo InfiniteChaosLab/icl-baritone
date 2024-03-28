@@ -43,6 +43,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 // TODO: Implement Roles:
 // President
@@ -85,7 +87,8 @@ public class Brain {
     private final String ROOT_FOLDER = "../../../src/main/java/brain/";
     private final GOAPPlanner planner;
     private final Map<BlockPos, List<ItemEntity>> droppedItems = new HashMap<>();
-    private Map<BlockPos, Block> knownBlocks = new HashMap<>();
+    private final Map<BlockPos, Block> knownBlocks = new HashMap<>();
+    private final ExecutorService executorService = Executors.newSingleThreadExecutor();
 
 
     public Brain(Baritone baritone, Minecraft minecraft) {
@@ -106,6 +109,7 @@ public class Brain {
             }
         });
         planner = new GOAPPlanner(this);
+        Runtime.getRuntime().addShutdownHook(new Thread(executorService::shutdown));
     }
 
     private void setGoal() {
@@ -130,7 +134,7 @@ public class Brain {
             if (field.getType() == Item.class) {
                 try {
                     Item i = (Item) field.get(null);
-                    Action action = new Action("Pick up " + i);
+                    Action action = new Action("🫳 " + i);
                     State dependencies = new State();
                     dependencies.individualStates.put(StateTypes.SEE_ITEM + " " + i, 1);
                     action.dependencies = dependencies;
@@ -164,8 +168,8 @@ public class Brain {
                     BlockPos pos = BlockPos.ZERO;
 
                     // Create the Action for mining the block with your hand
-                    Action mineActionWithHand = new Action("Mine " + block + " with hand");
-                    mineActionWithHand.action = "Mine " + block + " with hand";
+                    Action mineActionWithHand = new Action("⛏ " + block.getDescriptionId().replace("block.minecraft.", "") + " with 🤚");
+                    mineActionWithHand.action = "⛏ " + block.getDescriptionId().replace("block.minecraft.", "") + " with 🤚";
 
                     // Set the dependencies for mining the block with your hand
                     mineActionWithHand.dependencies = new State();
@@ -198,7 +202,7 @@ public class Brain {
                         List<ItemStack> drops = blockState.getDrops(builder);
 
                         // Create the Action for mining the block with the specific tool
-                        Action mineAction = new Action("Mine " + block + " with " + tool);
+                        Action mineAction = new Action("Mine " + block.getDescriptionId().replace("block.minecraft.", "") + " with " + tool);
                         mineAction.action = "Mine " + block + " with " + tool;
 
                         // Set the dependencies for mining the block with the specific tool
@@ -243,15 +247,18 @@ public class Brain {
             firstRun();
         }
         if (currentTick % Time.toTicks(1, Time.SECOND) == 0) {
-            updateState();
-            System.out.println("Current state: ");
-            currentState.individualStates.forEach((key, value) -> System.out.println(key + ": " + value));
+            // TODO: Consider using synchronized to prevent race conditions or other issues
+            executorService.execute(this::updateState);
         }
         if (currentTick % Time.toTicks(3, Time.SECOND) == 0) {
-            plan = planner.plan();
-            System.out.println("Plan updated!");
+            executorService.execute(() -> {
+                List<Action> newPlan = planner.plan();
+                synchronized (Brain.this) {
+                    plan = newPlan;
+                }
+                System.out.println("Plan updated!");
+            });
         }
-
         currentTick++;
     }
 
