@@ -17,12 +17,61 @@
 
 package brain;
 
+import net.minecraft.world.item.Item;
+import net.minecraft.world.level.block.Block;
+
 public class Action {
-    public Action(String action) {
-        this.action = action;
+    public Action(ActionType actionType, String actionString) {
+        this.actionType = actionType;
+        this.actionString = actionString;
+    }
+
+    public Action(ActionType actionType, String actionString, String description) {
+        this.actionType = actionType;
+        this.actionString = actionString;
+        this.description = description;
+    }
+
+    public Action(ActionType actionType, String actionString, String description, Block block) {
+        this.actionType = actionType;
+        this.actionString = actionString;
+        this.description = description;
+        this.block = block;
+    }
+
+    public Action(ActionType actionType, String actionString, String description, Block block, Item tool) {
+        this.actionType = actionType;
+        this.actionString = actionString;
+        this.description = description;
+        this.block = block;
+        this.tool = tool;
+    }
+
+    public Action(ActionType actionType, String actionString, String description, Item item) {
+        this.actionType = actionType;
+        this.actionString = actionString;
+        this.description = description;
+        this.item = item;
+    }
+
+    public Action(ActionType actionType, String actionString, Block block) {
+        this.actionType = actionType;
+        this.actionString = actionString;
+        this.block = block;
+    }
+
+    public Action(ActionType actionType, String actionString, Item item) {
+        this.actionType = actionType;
+        this.actionString = actionString;
+        this.item = item;
     }
 
     public State dependencies;
     public State results;
-    public String action;
+    public String actionString;
+    public String description;
+    public Block block;
+    public Item item;
+    public Item tool;
+    public ActionType actionType;
 }

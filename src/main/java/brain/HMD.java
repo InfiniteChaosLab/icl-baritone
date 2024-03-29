@@ -5,6 +5,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.toasts.Toast;
 import net.minecraft.client.gui.components.toasts.ToastComponent;
+import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.network.chat.FormattedText;
@@ -44,12 +45,16 @@ public class HMD implements Toast {
         if (!(minecraft.screen instanceof InventoryScreen || minecraft.screen instanceof PauseScreen)) {
             guiGraphics.drawString(minecraft.font, "|", x(w / 2 - MARGIN - 1), y(20), textColor);
             drawString(minecraft, guiGraphics, String.format("%03d°", Math.round(((minecraft.player.getYRot()) % 360 + 360) % 360)), x((w / 2) - 19), y(6 + LINE_HEIGHT * 2));
-            drawFoodInformation(minecraft, guiGraphics);
+        }
+        if (!(minecraft.screen instanceof InventoryScreen || minecraft.screen instanceof PauseScreen || minecraft.screen instanceof ChatScreen)) {
             drawHealthInformation(minecraft, guiGraphics);
+            drawFoodInformation(minecraft, guiGraphics);
+        }
+        if (!(minecraft.screen instanceof ChatScreen)) {
+            drawTime(minecraft, guiGraphics);
+            drawCoordinates(minecraft, guiGraphics);
         }
         drawHeading(minecraft, guiGraphics, 360 - minecraft.player.getYRot());
-        drawTime(minecraft, guiGraphics);
-        drawCoordinates(minecraft, guiGraphics);
         draw$(minecraft, guiGraphics);
         return Visibility.SHOW;
     }
@@ -73,7 +78,7 @@ public class HMD implements Toast {
         lineCount++;
 
         for (Action action : brain.plan) {
-            guiGraphics.drawString(minecraft.font, "▶ " + action.action, x(8), y(LINE_HEIGHT * lineCount), textColor);
+            guiGraphics.drawString(minecraft.font, "▶ " + action.description, x(8), y(LINE_HEIGHT * lineCount), textColor);
             lineCount++;
         }
     }

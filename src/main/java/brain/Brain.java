@@ -18,8 +18,11 @@
 package brain;
 
 import baritone.Baritone;
+import baritone.api.BaritoneAPI;
 import baritone.api.event.events.TickEvent;
 import baritone.api.event.listener.AbstractGameEventListener;
+import baritone.api.pathing.goals.Goal;
+import baritone.api.pathing.goals.GoalBlock;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import net.minecraft.client.Minecraft;
@@ -38,7 +41,8 @@ import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.Vec3;
 
-import java.io.*;
+import java.io.FileReader;
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
@@ -74,6 +78,8 @@ import java.util.concurrent.Executors;
 // Journalist
 // - Records events
 
+// TODO: Implement things it can see. This exists in Baritone. See legitMine.
+
 public class Brain {
     private final Baritone baritone;
     private final Minecraft minecraft;
@@ -82,6 +88,7 @@ public class Brain {
     public State goalState;
     public List<Action> availableActions;
     public List<Action> plan;
+    private Action actionInExecution;
     private final Map<String, State> goalStates;
     public int currentTick = 0;
     private final String ROOT_FOLDER = "../../../src/main/java/brain/";
@@ -112,6 +119,32 @@ public class Brain {
         Runtime.getRuntime().addShutdownHook(new Thread(executorService::shutdown));
     }
 
+    private void postTick() {
+        if (currentTick == 0) {
+            firstRun();
+        }
+        if (currentTick % Time.toTicks(1, Time.SECOND) == 0) {
+            // TODO: Consider using synchronized to prevent race conditions or other issues
+            executorService.execute(this::updateState);
+            executePlan();
+        }
+        if (currentTick % Time.toTicks(3, Time.SECOND) == 0) {
+            executorService.execute(() -> {
+                List<Action> newPlan = planner.plan();
+                synchronized (Brain.this) {
+                    plan = newPlan;
+                }
+            });
+        }
+        currentTick++;
+    }
+
+    private void firstRun() {
+        minecraft.getToasts().addToast(new HMD(this));
+        addActions();
+        plan = planner.plan();
+    }
+
     private void setGoal() {
         goalState = goalStates.get("just_get_one_dirt");
 //        if (!goalMet(goalStates.get("full_iron"))) {
@@ -134,7 +167,7 @@ public class Brain {
             if (field.getType() == Item.class) {
                 try {
                     Item i = (Item) field.get(null);
-                    Action action = new Action("🫳 " + i);
+                    Action action = new Action(ActionType.PICKUP, ActionType.PICKUP + " " + i, "🫳 " + i, i);
                     State dependencies = new State();
                     dependencies.individualStates.put(StateTypes.SEE_ITEM + " " + i, 1);
                     action.dependencies = dependencies;
@@ -168,8 +201,7 @@ public class Brain {
                     BlockPos pos = BlockPos.ZERO;
 
                     // Create the Action for mining the block with your hand
-                    Action mineActionWithHand = new Action("⛏ " + block.getDescriptionId().replace("block.minecraft.", "") + " with 🤚");
-                    mineActionWithHand.action = "⛏ " + block.getDescriptionId().replace("block.minecraft.", "") + " with 🤚";
+                    Action mineActionWithHand = new Action(ActionType.MINE, ActionType.MINE + " " + block + " with " + ItemStack.EMPTY.getItem(), "⛏ " + block.getDescriptionId().replace("block.minecraft.", "") + " with 🤚", block);
 
                     // Set the dependencies for mining the block with your hand
                     mineActionWithHand.dependencies = new State();
@@ -202,8 +234,7 @@ public class Brain {
                         List<ItemStack> drops = blockState.getDrops(builder);
 
                         // Create the Action for mining the block with the specific tool
-                        Action mineAction = new Action("Mine " + block.getDescriptionId().replace("block.minecraft.", "") + " with " + tool);
-                        mineAction.action = "Mine " + block + " with " + tool;
+                        Action mineAction = new Action(ActionType.MINE, ActionType.MINE + " " + block + " with " + tool, "⛏ " + block.getDescriptionId().replace("block.minecraft.", "") + " with " + tool, block, tool);
 
                         // Set the dependencies for mining the block with the specific tool
                         mineAction.dependencies = new State();
@@ -229,6 +260,67 @@ public class Brain {
         return actions;
     }
 
+    private void executePlan() {
+        if (plan == null || plan.isEmpty()) {
+            stopAllProcesses();
+            actionInExecution = null;
+            return;
+        }
+        if (actionInExecution != null && actionInExecution.equals(plan.get(0))) {
+            // Keep doing it
+            return;
+        }
+        // Stop all existing processes
+        stopAllProcesses();
+
+        Action action = plan.get(0);
+        if (action == null) {
+            return;
+        }
+        System.out.println("Executing action: " + action.actionString);
+        if (action.actionType == ActionType.MINE) {
+            Block block = action.block;
+            if (block == null) {
+                return;
+            }
+            BaritoneAPI.getProvider().getWorldScanner().repack(baritone.getPlayerContext());
+            baritone.getMineProcess().mine(block);
+            actionInExecution = action;
+        } else if (action.actionType == ActionType.PICKUP) {
+            Item item = action.item;
+            if (item == null) {
+                return;
+            }
+            // Get the nearest position of the dropped item from droppedItems
+            BlockPos nearestPos = null;
+            double nearestDistance = Double.MAX_VALUE;
+            for (Map.Entry<BlockPos, List<ItemEntity>> entry : droppedItems.entrySet()) {
+                BlockPos pos = entry.getKey();
+                double distance = baritone.getPlayerContext().player().position().distanceTo(Vec3.atCenterOf(pos));
+                if (distance < nearestDistance) {
+                    nearestPos = pos;
+                    nearestDistance = distance;
+                }
+            }
+            if (nearestPos == null) {
+                return;
+            }
+            // Set the goal to the nearest one's position
+            Goal goal = new GoalBlock(nearestPos);
+            baritone.getCustomGoalProcess().setGoal(goal);
+            // Request pathing to the goal
+            baritone.getCustomGoalProcess().path();
+
+            actionInExecution = action;
+        }
+    }
+
+    private void stopAllProcesses() {
+        baritone.getGetToBlockProcess().onLostControl();
+        baritone.getMineProcess().onLostControl();
+        baritone.getCustomGoalProcess().onLostControl();
+    }
+
     private boolean goalMet(State goalState) {
         // For each state in the goal, check if we have satisfied it.
         for (Map.Entry<String, Integer> entry : goalState.individualStates.entrySet()) {
@@ -240,33 +332,6 @@ public class Brain {
             }
         }
         return false;
-    }
-
-    private void postTick() {
-        if (currentTick == 0) {
-            firstRun();
-        }
-        if (currentTick % Time.toTicks(1, Time.SECOND) == 0) {
-            // TODO: Consider using synchronized to prevent race conditions or other issues
-            executorService.execute(this::updateState);
-        }
-        if (currentTick % Time.toTicks(3, Time.SECOND) == 0) {
-            executorService.execute(() -> {
-                List<Action> newPlan = planner.plan();
-                synchronized (Brain.this) {
-                    plan = newPlan;
-                }
-                System.out.println("Plan updated!");
-            });
-        }
-        currentTick++;
-    }
-
-    private void firstRun() {
-        minecraft.getToasts().addToast(new HMD(this));
-        addActions();
-        plan = planner.plan();
-        System.out.println("PLAN CREATED!");
     }
 
     private void updateState() {
@@ -287,14 +352,15 @@ public class Brain {
             int quantity = itemStack.getCount();
 
             // Add the quantity to the existing quantity for the item type, or initialize it if not present
-            itemQuantities.merge(itemName, quantity, Integer::sum);
+            itemQuantities.merge(StateTypes.IN_INVENTORY_AT_LEAST + " " + itemName, quantity, Integer::sum);
 
             // Calculate the value of the item based on its quantity and value from the JSON file
             double itemValue = itemValues.getOrDefault(itemName, 0.0) * quantity;
             totalValue[0] += itemValue;
         });
-
-        // Update the currentState.state with the summed quantities
+        // Remove all current knowledge of inventory
+        currentState.individualStates.keySet().removeIf(key -> key.startsWith(String.valueOf(StateTypes.IN_INVENTORY_AT_LEAST)));
+        // Update the inventory knowledge with the summed quantities
         currentState.individualStates.putAll(itemQuantities);
 
         // Set the $ variable to the total value of the inventory

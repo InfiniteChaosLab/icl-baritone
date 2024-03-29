@@ -27,6 +27,16 @@ public class GOAPPlanner {
     }
 
     public List<Action> plan() {
+        // Check if we are already in the goal state, and return an empty list if we are
+        for (Map.Entry<String, Integer> entry : brain.goalState.individualStates.entrySet()) {
+            String key = entry.getKey();
+            int value = entry.getValue();
+            if (brain.currentState.individualStates.getOrDefault(key, 0) < value) {
+                break;
+            }
+            return Collections.emptyList();
+        }
+
         // Create a priority queue to store the open nodes
         PriorityQueue<Node> openNodes = new PriorityQueue<>(Comparator.comparingInt(n -> n.f));
 
