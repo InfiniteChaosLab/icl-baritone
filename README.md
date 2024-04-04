@@ -62,8 +62,12 @@ Land is valued based on its proximity to water and its flatness.
 13. In the Project hierarchy, expand `src`
 14. Right click the `schematica_api` project and click "Build Module 'baritone.schematica_api'"
 15. At the top of IntelliJ, make sure to the left of the ▶️ button reads ":fabric+main Minecraft Client". If it doesn't, click it and select it from the menu.
-16. Click ▶️
-17. 🤖
+16. Open that menu, click "..." next to that run configuration.
+17. Click "Edit..."
+18. In the `-cp` dropdown, select `fabric.baritone.fabric.main`
+19. Click "OK"
+20. Click ▶️
+21. 🤖
 
 ## Acknowledgement
 **Gurt** is built upon [baritone](https://github.com/cabaletta/baritone), a Minecraft pathfinder bot.
