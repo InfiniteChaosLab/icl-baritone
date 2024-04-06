@@ -19,6 +19,7 @@ package brain;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 public class State {
     public String name;
@@ -34,10 +35,31 @@ public class State {
         this.individualStates = new HashMap<>();
     }
 
+    public State(State other) {
+        this.name = other.name;
+        this.description = other.description;
+        this.individualStates = new HashMap<>(other.individualStates);
+    }
+
     public State(String name, String description) {
         this.name = name;
         this.description = description;
         this.individualStates = new HashMap<>();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        State state = (State) o;
+        return Objects.equals(name, state.name) &&
+                Objects.equals(description, state.description) &&
+                individualStates.equals(state.individualStates);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(name, description, individualStates);
     }
 
     @Override

@@ -17,10 +17,11 @@
 
 package brain;
 
-public enum StateTypes {
-    SEE_ITEM,
-    SEE_BLOCK,
-    WEARING_AT_LEAST,
-    IN_INVENTORY_AT_LEAST,
-    CLOSE_BY,
+public final class ClickButton {
+    public static final int LEFT_CLICK = 0;
+    public static final int RIGHT_CLICK = 1;
+
+    private ClickButton() {
+        // Private constructor to prevent instantiation
+    }
 }

@@ -18,6 +18,7 @@
 package brain;
 
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.level.block.Block;
 
 public class Action {
@@ -66,6 +67,20 @@ public class Action {
         this.item = item;
     }
 
+    public Action(Action other) {
+        this.dependencies = other.dependencies != null ? new State(other.dependencies) : null;
+        this.results = other.results != null ? new State(other.results) : null;
+        this.actionString = other.actionString;
+        this.description = other.description;
+        this.block = other.block;
+        this.item = other.item;
+        this.tool = other.tool;
+        this.actionType = other.actionType;
+        // If weird issue happens with copying actions & changing recipes, may be because we need to make a new recipe based on the old.
+        this.recipe = other.recipe;
+        this.requiresCraftingTable = other.requiresCraftingTable;
+    }
+
     public State dependencies;
     public State results;
     public String actionString;
@@ -74,4 +89,6 @@ public class Action {
     public Item item;
     public Item tool;
     public ActionType actionType;
+    public CraftingRecipe recipe;
+    public boolean requiresCraftingTable = false;
 }

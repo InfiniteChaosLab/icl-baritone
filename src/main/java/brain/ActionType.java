@@ -44,4 +44,5 @@ public enum ActionType {
     MESSAGE,
     FISH,
     PICKUP,
+    PLACE
 }

@@ -19,11 +19,11 @@ package brain;
 
 import java.util.*;
 
-public class GOAPPlanner {
+public class Planner {
     private static Brain brain;
 
-    public GOAPPlanner(Brain brain) {
-        GOAPPlanner.brain = brain;
+    public Planner(Brain brain) {
+        Planner.brain = brain;
     }
 
     public List<Action> plan() {
@@ -50,7 +50,7 @@ public class GOAPPlanner {
         openNodes.add(initialNode);
 
         // TODO: Ensure no infinite loop
-        while (!openNodes.isEmpty()) {
+        while (!openNodes.isEmpty() && openNodes.size() <= 10000) {
             // Get the node with the lowest f value from the open list
             Node currentNode = openNodes.poll();
 
@@ -63,6 +63,7 @@ public class GOAPPlanner {
                     int value = entry.getValue();
                     if (brain.currentState.individualStates.getOrDefault(key, 0) < value) {
                         goalNotMet = true;
+                        break;
                     }
                 }
             } else {
@@ -78,7 +79,7 @@ public class GOAPPlanner {
             // Generate the predecessor nodes
             for (Action action : brain.availableActions) {
                 // Check if this action's results are contained within the current state
-                if (actionLeadsToState(currentNode.state, action)) {
+                if (stateAchievedByAction(currentNode.state, action)) {
                     // Apply the inverse of the action to the current state to get the previous state
                     State prevState = applyInverseAction(currentNode.state, action);
                     // If the previous state is already in the closed list, skip it
@@ -101,20 +102,23 @@ public class GOAPPlanner {
             }
         }
 
+        if (openNodes.size() > 10000) {
+            System.out.println("PLANNER: Open nodes exceeded 10000!");
+        }
+
         // If the open list is empty and no path is found, return an empty list
         return Collections.emptyList();
     }
 
-    private boolean actionLeadsToState(State state, Action action) {
-        // Check if this action's results are contained within the current state
-        // (Simplified: Does this action lead to this state)
-        if (action.results.individualStates.entrySet().isEmpty()) {
-            return false;
-        }
-        for (Map.Entry<String, Integer> entry : action.results.individualStates.entrySet()) {
+    // Does this action lead to this state
+    private boolean stateAchievedByAction(State state, Action action) {
+        for (Map.Entry<String, Integer> entry : state.individualStates.entrySet()) {
+            if (entry.getValue() == 0) {
+                continue;
+            }
             String key = entry.getKey();
-            int resultingValue = entry.getValue();
-            if (!state.individualStates.containsKey(key) || state.individualStates.get(key) < resultingValue) {
+            int value = entry.getValue();
+            if (action.results.individualStates.getOrDefault(key, 0) < value) {
                 return false;
             }
         }
@@ -125,15 +129,19 @@ public class GOAPPlanner {
         State prevState = new State();
         // TODO: Check thoroughly.
         prevState.individualStates.putAll(state.individualStates);
-        prevState.individualStates.putAll(action.dependencies.individualStates);
 
         // Apply the inverse of the action's effects to the new state
         for (Map.Entry<String, Integer> entry : action.results.individualStates.entrySet()) {
             String key = entry.getKey();
             int value = entry.getValue();
-            prevState.individualStates.put(key, Math.max(prevState.individualStates.get(key) - value, 0));
+            value = Math.max(prevState.individualStates.getOrDefault(key, 0) - value, 0);
+            if (value > 0) {
+                prevState.individualStates.put(key, value);
+            } else {
+                prevState.individualStates.remove(key);
+            }
         }
-
+        prevState.individualStates.putAll(action.dependencies.individualStates);
         return prevState;
     }
 

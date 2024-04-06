@@ -17,10 +17,6 @@
 
 package brain;
 
-public enum StateTypes {
-    SEE_ITEM,
-    SEE_BLOCK,
-    WEARING_AT_LEAST,
-    IN_INVENTORY_AT_LEAST,
-    CLOSE_BY,
+public enum GUIWindow {
+    CRAFTING_TABLE, INVENTORY
 }
