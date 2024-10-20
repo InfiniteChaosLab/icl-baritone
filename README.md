@@ -57,7 +57,7 @@ Land is valued based on its proximity to water and its flatness.
 8. Click ⚙️ (this may be hidden due to the sidebar being too thin, extand if horizontally it so)
 9. Click "Gradle Settings" 
 10. Change the "Build and run using" and "Run tests using" fields to "IntelliJ IDEA"
-11. Make sure the "Gradle JVM" setting is version 17 or 18. If not, "Download JDK..." and add a version 18 JDK.
+11. Make sure the "Gradle JVM" setting is version 17. If not, "Download JDK..." and add a version 17 JDK.
 12. Click "OK"
 13. Click 🔁 (Reload All Gradle Projects)
 14. In the Project hierarchy, expand `src`
