@@ -54,7 +54,7 @@ Land is valued based on its proximity to water and its flatness.
 5. Allow any processes to complete
 6. Close the project & reopen it (this is due to an IntelliJ Gradle bug)
 7. Open the Gradle panel if it isn't already open (the elephant near the top right)
-8. Click ⚙️ (this may be hidden due to the sidebar being too thin, extand if horizontally if so)
+8. Click ⚙️ (this may be hidden due to the sidebar being too thin, extand if horizontally it so)
 9. Click "Gradle Settings" 
 10. Change the "Build and run using" and "Run tests using" fields to "IntelliJ IDEA"
 11. Make sure the "Gradle JVM" setting is version 17 or 18. If not, "Download JDK..." and add a version 18 JDK.
