@@ -65,7 +65,7 @@ Land is valued based on its proximity to water and its flatness.
 16. At the top of IntelliJ, make sure to the left of the ▶️ button reads ":fabric+main Minecraft Client". If it doesn't, click it and select it from the menu.
 17. Open that menu, click "..." next to that run configuration.
 18. Click "Edit..."
-19. In the `-cp` dropdown, select `fabric.baritone.fabric.main`
+19. In the `-cp` dropdown, select `baritone.fabric.main`
 20. Click "OK"
 21. Click ▶️
 22. 🤖
