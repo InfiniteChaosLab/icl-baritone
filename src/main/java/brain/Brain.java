@@ -25,6 +25,8 @@ import baritone.api.pathing.goals.Goal;
 import baritone.api.pathing.goals.GoalBlock;
 import baritone.api.utils.Rotation;
 import baritone.api.utils.input.Input;
+import baritone.pathing.movement.CalculationContext;
+import baritone.process.MineProcess;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import net.minecraft.client.Minecraft;
@@ -85,7 +87,7 @@ import java.util.concurrent.*;
 // Journalist
 // - Records events
 
-// Inventory Arrangement:
+// Desired Inventory Arrangement:
 // [Hel]
 // [Che]                    [Cra][Cra]     [Res]
 // [Leg]                    [Cra][Cra]
@@ -104,6 +106,8 @@ import java.util.concurrent.*;
 // [18 ][19 ][20 ][21 ][22 ][23 ][24 ][25 ][26 ] - Row 2
 // [27 ][28 ][29 ][30 ][31 ][32 ][33 ][34 ][35 ] - Row 3
 // [36 ][37 ][38 ][39 ][40 ][41 ][42 ][43 ][44 ] - Hotbar
+
+// https://wiki.vg/Inventory (also includes other inventories eg. Furnace)
 
 // TODO: Implement things it can see (line of sight). This exists in Baritone. See legitMine.
 
@@ -135,8 +139,10 @@ public class Brain {
     public List<ChunkPos> claimedChunks = new ArrayList<>();
     private boolean neverPlacedBefore = true;
     private BlockPos nearestCraftingTable = null;
+    private BlockPos nearestFurnace = null;
     private final int CLOSE_BY_DISTANCE = 128;
     private final int SEE_BLOCK_RANGE = 128;
+    public volatile Planner.Node currentlyConsideredNode;
 
 
     public Brain(Baritone baritone, Minecraft minecraft) {
@@ -218,6 +224,8 @@ public class Brain {
         availableActions.addAll(createMineBlockActions());
         availableActions.addAll(createCraftingActions());
         availableActions.addAll(createPlaceBlockActions());
+        availableActions.addAll(createWearActions());
+        availableActions.addAll(createSmeltActions());
     }
 
     private List<Action> createPickupItemActions() {
@@ -275,10 +283,18 @@ public class Brain {
 
                     // Set the effects for mining the block with your hand
                     ItemStack emptyHand = ItemStack.EMPTY;
-                    List<ItemStack> handDrops = blockState.getDrops(new LootParams.Builder(level)
-                            .withParameter(LootContextParams.BLOCK_STATE, blockState)
-                            .withParameter(LootContextParams.ORIGIN, Vec3.atCenterOf(pos))
-                            .withParameter(LootContextParams.TOOL, emptyHand));
+                    List<ItemStack> handDrops = new ArrayList<>();
+
+                    // Check if block is plausible to break and if we can get drops with hand
+                    CalculationContext context = new CalculationContext(baritone);
+                    if (MineProcess.plausibleToBreak(context, pos)) {
+                        if (!blockState.requiresCorrectToolForDrops() || emptyHand.isCorrectToolForDrops(blockState)) {
+                            handDrops = blockState.getDrops(new LootParams.Builder(level)
+                                    .withParameter(LootContextParams.BLOCK_STATE, blockState)
+                                    .withParameter(LootContextParams.ORIGIN, Vec3.atCenterOf(pos))
+                                    .withParameter(LootContextParams.TOOL, emptyHand));
+                        }
+                    }
                     mineActionWithHand.results = new State();
                     updateResultsWithDrops(mineActionWithHand.results, handDrops);
 
@@ -286,29 +302,33 @@ public class Brain {
                     actions.add(mineActionWithHand);
 
                     for (Item tool : tools) {
-                        LootParams.Builder builder = new LootParams.Builder(level);
-                        builder.withParameter(LootContextParams.BLOCK_STATE, blockState);
-                        builder.withParameter(LootContextParams.ORIGIN, Vec3.atCenterOf(pos));
-                        builder.withParameter(LootContextParams.TOOL, new ItemStack(tool));
-                        builder.withParameter(LootContextParams.EXPLOSION_RADIUS, 0.0f);
+                        ItemStack toolStack = new ItemStack(tool);
 
-                        // Get the block drops
-                        List<ItemStack> drops = blockState.getDrops(builder);
+                        if (!blockState.requiresCorrectToolForDrops() || toolStack.isCorrectToolForDrops(blockState)) {
+                            LootParams.Builder builder = new LootParams.Builder(level);
+                            builder.withParameter(LootContextParams.BLOCK_STATE, blockState);
+                            builder.withParameter(LootContextParams.ORIGIN, Vec3.atCenterOf(pos));
+                            builder.withParameter(LootContextParams.TOOL, toolStack);
+                            builder.withParameter(LootContextParams.EXPLOSION_RADIUS, 0.0f);
 
-                        // Create the Action for mining the block with the specific tool
-                        Action mineAction = new Action(ActionType.MINE, ActionType.MINE + " " + blockName + " with " + tool, "⛏ " + blockName + " with " + tool, block, tool);
+                            // Get the block drops
+                            List<ItemStack> drops = blockState.getDrops(builder);
 
-                        // Set the dependencies for mining the block with the specific tool
-                        mineAction.dependencies = new State();
-                        mineAction.dependencies.individualStates.put(StateTypes.SEE_BLOCK + " " + blockName, 1);
-                        mineAction.dependencies.individualStates.put(StateTypes.IN_INVENTORY_AT_LEAST + " " + tool, 1);
+                            // Create the Action for mining the block with the specific tool
+                            Action mineAction = new Action(ActionType.MINE, ActionType.MINE + " " + blockName + " with " + tool, "⛏ " + blockName + " with " + tool, block, tool);
 
-                        // Set the effects for mining the block with the specific tool
-                        mineAction.results = new State();
-                        updateResultsWithDrops(mineAction.results, drops);
+                            // Set the dependencies for mining the block with the specific tool
+                            mineAction.dependencies = new State();
+                            mineAction.dependencies.individualStates.put(StateTypes.SEE_BLOCK + " " + blockName, 1);
+                            mineAction.dependencies.individualStates.put(StateTypes.IN_INVENTORY_AT_LEAST + " " + tool, 1);
 
-                        // Add the mine action to the list of available actions
-                        actions.add(mineAction);
+                            // Set the effects for mining the block with the specific tool
+                            mineAction.results = new State();
+                            updateResultsWithDrops(mineAction.results, drops);
+
+                            // Add the mine action to the list of available actions
+                            actions.add(mineAction);
+                        }
                     }
                 } catch (IllegalAccessException e) {
                     e.printStackTrace();
@@ -404,6 +424,79 @@ public class Brain {
         return actions;
     }
 
+    private List<Action> createWearActions() {
+        Item[] wearableItems = {
+                Items.LEATHER_HELMET, Items.LEATHER_CHESTPLATE, Items.LEATHER_LEGGINGS, Items.LEATHER_BOOTS,
+                Items.CHAINMAIL_HELMET, Items.CHAINMAIL_CHESTPLATE, Items.CHAINMAIL_LEGGINGS, Items.CHAINMAIL_BOOTS,
+                Items.IRON_HELMET, Items.IRON_CHESTPLATE, Items.IRON_LEGGINGS, Items.IRON_BOOTS,
+                Items.GOLDEN_HELMET, Items.GOLDEN_CHESTPLATE, Items.GOLDEN_LEGGINGS, Items.GOLDEN_BOOTS,
+                Items.DIAMOND_HELMET, Items.DIAMOND_CHESTPLATE, Items.DIAMOND_LEGGINGS, Items.DIAMOND_BOOTS,
+                Items.NETHERITE_HELMET, Items.NETHERITE_CHESTPLATE, Items.NETHERITE_LEGGINGS, Items.NETHERITE_BOOTS,
+                Items.TURTLE_HELMET, Items.ELYTRA
+        };
+        List<Action> actions = new ArrayList<>();
+        for (Item wearableItem : wearableItems) {
+            Action wearAction = new Action(ActionType.WEAR, ActionType.WEAR + " " + wearableItem.toString(), "👕 " + wearableItem, wearableItem);
+            State dependencies = new State();
+            dependencies.individualStates.put(StateTypes.IN_INVENTORY_AT_LEAST + " " + wearableItem, 1);
+            wearAction.dependencies = dependencies;
+            State results = new State();
+            results.individualStates.put(StateTypes.WEARING_AT_LEAST + " " + wearableItem, 1);
+            wearAction.results = results;
+            actions.add(wearAction);
+        }
+        return actions;
+    }
+
+    private List<Action> createSmeltActions() {
+        List<Action> actions = new ArrayList<>();
+        RecipeManager recipeManager = Objects.requireNonNull(minecraft.level).getRecipeManager();
+        Collection<RecipeHolder<?>> recipeHolders = recipeManager.getRecipes();
+
+        for (RecipeHolder<?> recipeHolder : recipeHolders) {
+            Recipe<?> recipe = recipeHolder.value();
+            if (recipe instanceof SmeltingRecipe smeltingRecipe) {
+                RegistryAccess registryAccess = Objects.requireNonNull(minecraft.getConnection()).registryAccess();
+
+                ItemStack result = recipe.getResultItem(registryAccess);
+                Item resultItem = result.getItem();
+                if (resultItem == Items.AIR) {
+                    continue;
+                }
+
+                String itemName = resultItem.toString();
+                Action smeltAction = new Action(ActionType.SMELT, ActionType.SMELT + " " + itemName, "🔥 " + itemName, resultItem);
+
+                // Set dependencies
+                smeltAction.dependencies = new State();
+
+                // Need a furnace nearby
+                smeltAction.dependencies.individualStates.put(StateTypes.SEE_BLOCK + " " + getBlockName(Blocks.FURNACE), 1);
+                smeltAction.dependencies.individualStates.put(StateTypes.CLOSE_BY + " " + getBlockName(Blocks.FURNACE), 1);
+
+                // Need the ingredient
+                Ingredient ingredient = smeltingRecipe.getIngredients().get(0); // Smelting recipes only have one ingredient
+                ItemStack[] itemVariants = ingredient.getItems();
+                if (itemVariants.length > 0) {
+                    Item ingredientItem = itemVariants[0].getItem();
+                    String dependencyItemName = ingredientItem.toString();
+                    smeltAction.dependencies.individualStates.put(StateTypes.IN_INVENTORY_AT_LEAST + " " + dependencyItemName, 1);
+                }
+
+                // Need fuel (coal, etc.)
+                smeltAction.dependencies.individualStates.put(StateTypes.IN_INVENTORY_AT_LEAST + " " + Items.COAL, 1);
+
+                // Set results
+                smeltAction.results = new State();
+                smeltAction.results.individualStates.put(StateTypes.IN_INVENTORY_AT_LEAST + " " + itemName, result.getCount());
+
+                actions.add(smeltAction);
+            }
+        }
+
+        return actions;
+    }
+
     private String getBlockName(Block block) {
         return block.getDescriptionId().replace("block.minecraft.", "");
     }
@@ -442,6 +535,27 @@ public class Brain {
             }
         }
         return false;
+    }
+
+    // TODO: Check if this ever needs to account for variants. Eg. some different type of wood or something. If Gurt is to use wood,
+    // then it will need to check for variants.
+    private int getInventorySlotForItem(RecipeBookMenu<CraftingContainer> menu, Item item) {
+        for (int i = 0; i < menu.slots.size(); i++) {
+            if (menu.getSlot(i).getItem().getItem() == item) {
+                return menu.getSlot(i).index;
+            }
+        }
+        return -1;
+    }
+
+    // TODO: Check if this works
+    private int getFurnaceSlotForItem(FurnaceMenu menu, Item item) {
+        for (int i = 0; i < menu.slots.size(); i++) {
+            if (menu.getSlot(i).getItem().getItem() == item) {
+                return menu.getSlot(i).index;
+            }
+        }
+        return -1;
     }
 
     private boolean populateShapedRecipePatternData(ShapedRecipe shapedRecipe, List<String> patternRows, Map<Character, Ingredient> patternKey) {
@@ -625,9 +739,11 @@ public class Brain {
 //                    queuedClicks.add(new Click(-999, ClickButton.LEFT_CLICK, ClickType.THROW));
                 }
             } else {
+                // The recipe does not require a crafting table.
                 // Get the player's inventory menu
                 InventoryMenu inventoryMenu = baritone.getPlayerContext().player().inventoryMenu;
                 Map<Ingredient, Slot> slotsToPickUpItemsFrom = new HashMap<>();
+                // NOTE: This actually populates the slotsToPickUpItemsFrom map.
                 if (weDontHaveWhatWeNeed(inventoryMenu, action, slotsToPickUpItemsFrom)) {
                     System.out.println("Something is wrong! We don't have everything we need to craft this item!");
                     return;
@@ -695,6 +811,124 @@ public class Brain {
             String blockName = getBlockName(block);
             baritone.getBuilderProcess().build(blockName, new File(ROOT_FOLDER + "schematics/" + blockName + ".schem"), baritone.getPlayerContext().player().blockPosition());
             actionInExecution = action;
+        } else if (action.actionType == ActionType.WEAR) {
+            Item item = action.item;
+            if (item == null) {
+                return;
+            }
+            // Get the player's inventory menu
+            InventoryMenu inventoryMenu = baritone.getPlayerContext().player().inventoryMenu;
+
+            // Get the inventory slot that contains the item we need to wear
+            int inventorySlot = getInventorySlotForItem(inventoryMenu, item);
+            if (inventorySlot == -1) {
+                System.out.println("Something is wrong! We don't have the item we need to wear in our inventory!");
+                return;
+            }
+            // Equip the item
+            queuedClicks.add(new Click(inventorySlot, ClickButton.LEFT_CLICK, ClickType.QUICK_MOVE));
+            actionInExecution = action;
+        } else if (action.actionType == ActionType.SMELT) {
+            if (nearestFurnace == null) {
+                System.out.println("Something is wrong! We don't know where the nearest furnace is!");
+                return;
+            }
+            if (baritone.getPlayerContext().player().position().distanceTo(Vec3.atCenterOf(nearestFurnace)) > 1) {
+                // We are not close enough to the furnace, path to it.
+
+                // If we're already pathing to it, return; and keep going.
+                if (baritone.getCustomGoalProcess().getGoal().isInGoal(nearestFurnace.above())) {
+                    return;
+                }
+
+                // Go to the block above the furnace.
+                Goal goal = new GoalBlock(nearestFurnace.above());
+                baritone.getCustomGoalProcess().setGoal(goal);
+                baritone.getCustomGoalProcess().path();
+            } else {
+                // We are close enough to the furnace, interact with it.
+                // Look at the furnace (straight down)
+                baritone.getLookBehavior().updateTarget(new Rotation(0, 0), true);
+                // Open the furnace GUI
+                baritone.getInputOverrideHandler().setInputForceState(Input.CLICK_RIGHT, true);
+                // We should now be in the furnace GUI.
+                if (!(baritone.getPlayerContext().player().containerMenu instanceof FurnaceMenu furnaceMenu)) {
+                    // We are not in the furnace GUI, return; and try again.
+                    return;
+                }
+                // We are in the furnace GUI.
+
+                // Check if there's anything in the result slot (slot 2)
+                ItemStack resultStack = furnaceMenu.getSlot(2).getItem();
+                if (!resultStack.isEmpty()) {
+                    // Find first empty inventory slot
+                    int firstEmptySlot = -1;
+                    for (int i = 3; i < furnaceMenu.slots.size(); i++) {
+                        if (furnaceMenu.getSlot(i).getItem().isEmpty()) {
+                            firstEmptySlot = i;
+                            break;
+                        }
+                    }
+
+                    if (firstEmptySlot != -1) {
+                        // Click result slot to pick up item
+                        queuedClicks.add(new Click(2, ClickType.QUICK_MOVE, GUIWindow.FURNACE));
+                    } else {
+                        System.out.println("No empty inventory slots to collect smelted item!");
+                    }
+                    return;
+                }
+
+                // Check if the furnace is already smelting what we want
+                ItemStack inputStack = furnaceMenu.getSlot(0).getItem();
+                if (!inputStack.isEmpty() && inputStack.getItem() == action.item) {
+                    // Already smelting the right item, just wait
+                    return;
+                }
+
+                // Place the item we want to smelt into the top slot
+                Item item = action.item;
+                if (item == null) {
+                    System.out.println("Something is wrong! The action doesn't have the item we need to smelt!");
+                    return;
+                }
+                int itemSlot = getFurnaceSlotForItem(furnaceMenu, item);
+                if (itemSlot == -1) {
+                    System.out.println("Something is wrong! We don't have the item we need to smelt in our inventory!");
+                    return;
+                }
+                queuedClicks.add(new Click(itemSlot, ClickType.QUICK_MOVE, GUIWindow.FURNACE));
+
+                // Handle fuel management
+                ItemStack fuelStack = furnaceMenu.getSlot(1).getItem();
+                if (!fuelStack.isEmpty()) {
+                    if (fuelStack.getItem() == Items.COAL) {
+                        // If there's less than 8 coal, and we have more, add more
+                        if (fuelStack.getCount() < 8) {
+                            int coalSlot = getFurnaceSlotForItem(furnaceMenu, Items.COAL);
+                            if (coalSlot != -1) {
+                                queuedClicks.add(new Click(coalSlot, ClickType.QUICK_MOVE, GUIWindow.FURNACE));
+                            }
+                        }
+                    } else {
+                        // Wrong fuel type, remove it
+                        queuedClicks.add(new Click(1, ClickType.QUICK_MOVE, GUIWindow.FURNACE));
+                        if (!furnaceMenu.getSlot(1).getItem().isEmpty()) {
+                            // If quick move didn't work (inventory full), throw it out
+                            queuedClicks.add(new Click(1, GUIWindow.FURNACE));
+                            queuedClicks.add(new Click(-999, ClickButton.LEFT_CLICK, ClickType.THROW, GUIWindow.FURNACE));
+                        }
+                    }
+                } else {
+                    // No fuel, add coal if we have it
+                    int coalSlot = getFurnaceSlotForItem(furnaceMenu, Items.COAL);
+                    if (coalSlot != -1) {
+                        queuedClicks.add(new Click(coalSlot, ClickType.QUICK_MOVE, GUIWindow.FURNACE));
+                    }
+                }
+
+                actionInExecution = action;
+            }
         }
     }
 
@@ -727,6 +961,21 @@ public class Brain {
             if (queuedClicks.isEmpty() || queuedClicks.peek().window != GUIWindow.INVENTORY) {
                 baritone.getPlayerContext().player().closeContainer();
                 inventoryIsOpen = false;
+            }
+        } else if (click.window == GUIWindow.FURNACE) {
+            AbstractContainerMenu container = baritone.getPlayerContext().player().containerMenu;
+            if (container instanceof FurnaceMenu) {
+//                if (click.slotIndex == -999) {
+//                    // Throw item
+//                    baritone.getPlayerContext().playerController().drop(baritone.getPlayerContext().player(), click.clickType);
+//                } else {
+                baritone.getPlayerContext().playerController().windowClick(
+                        container.containerId,
+                        click.slotIndex,
+                        click.clickButton,
+                        click.clickType,
+                        baritone.getPlayerContext().player()
+                );
             }
         }
     }
@@ -887,6 +1136,18 @@ public class Brain {
             // Otherwise add that state.
         } else {
             currentState.individualStates.put(StateTypes.CLOSE_BY + " " + getBlockName(Blocks.CRAFTING_TABLE), 1);
+        }
+
+        nearestFurnace = findClosestBlock(Blocks.FURNACE);
+        if (nearestFurnace == null) {
+            return;
+        }
+        // If the nearest furnace is too far away, delete the CLOSE_BY state for furnace in our currentState.
+        if (baritone.getPlayerContext().player().position().distanceTo(Vec3.atCenterOf(nearestFurnace)) > CLOSE_BY_DISTANCE) {
+            currentState.individualStates.remove(StateTypes.CLOSE_BY + " " + getBlockName(Blocks.FURNACE));
+            // Otherwise add that state.
+        } else {
+            currentState.individualStates.put(StateTypes.CLOSE_BY + " " + getBlockName(Blocks.FURNACE), 1);
         }
     }
 

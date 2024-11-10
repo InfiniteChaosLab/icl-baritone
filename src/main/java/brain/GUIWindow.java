@@ -18,5 +18,5 @@
 package brain;
 
 public enum GUIWindow {
-    CRAFTING_TABLE, INVENTORY
+    CRAFTING_TABLE, INVENTORY, FURNACE
 }

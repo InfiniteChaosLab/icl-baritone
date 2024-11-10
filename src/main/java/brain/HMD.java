@@ -25,6 +25,8 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 
 // Head-Mounted Display
 public class HMD implements Toast {
@@ -115,6 +117,28 @@ public class HMD implements Toast {
             guiGraphics.drawString(minecraft.font, "📝 " + loadingIndicator[loadingIndicatorIndex], x(64), y(0), textColor);
             if (frameCounter % 10 == 0) {
                 loadingIndicatorIndex = (loadingIndicatorIndex + 1) % loadingIndicator.length;
+            }
+            drawCurrentlyConsideredNode(minecraft, guiGraphics);
+        }
+    }
+
+    private void drawCurrentlyConsideredNode(Minecraft minecraft, GuiGraphics guiGraphics) {
+        if (brain.currentlyConsideredNode != null && brain.isPlanning) {
+            int lineCount = 1;
+            Planner.Node node = brain.currentlyConsideredNode;
+            List<String> actionChain = new ArrayList<>();
+
+            // Build the chain of actions from current node to root
+            while (node != null && node.action != null) {
+                actionChain.add("💭 " + node.action.description);
+                node = node.parent;
+            }
+
+            // Display the chain from root to current (reverse order)
+            for (int i = actionChain.size() - 1; i >= 0; i--) {
+                String text = actionChain.get(i);
+                guiGraphics.drawString(minecraft.font, text, x(w - 150), y(LINE_HEIGHT * (lineCount + 1)), textColor);
+                lineCount++;
             }
         }
     }
@@ -209,6 +233,7 @@ public class HMD implements Toast {
 
         drawString(minecraft, guiGraphics, moneyString, x(w - 8 - moneyString.length() * 6), y(0));
     }
+
     private void drawClaimedChunksBorder(Minecraft minecraft, GuiGraphics guiGraphics) {
         int borderColor = rgb(0, 0, 255); // Blue color
 

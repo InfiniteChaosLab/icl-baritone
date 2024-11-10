@@ -51,6 +51,12 @@ public class Click {
         this.clickType = clickType;
     }
 
+    public Click(int slotIndex, ClickType clickType, GUIWindow window) {
+        this.slotIndex = slotIndex;
+        this.clickType = clickType;
+        this.window = window;
+    }
+
     public Click(int slotIndex, int clickButton, ClickType clickType, GUIWindow window) {
         this.slotIndex = slotIndex;
         this.clickButton = clickButton;
