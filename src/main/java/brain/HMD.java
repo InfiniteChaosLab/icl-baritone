@@ -137,7 +137,8 @@ public class HMD implements Toast {
             // Display the chain from root to current (reverse order)
             for (int i = actionChain.size() - 1; i >= 0; i--) {
                 String text = actionChain.get(i);
-                guiGraphics.drawString(minecraft.font, text, x(w - 150), y(LINE_HEIGHT * (lineCount + 1)), textColor);
+                int textWidth = minecraft.font.width(text);
+                guiGraphics.drawString(minecraft.font, text, x(w - textWidth), y(LINE_HEIGHT * (lineCount + 1)), textColor);
                 lineCount++;
             }
         }

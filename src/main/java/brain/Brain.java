@@ -369,7 +369,18 @@ public class Brain {
 
                 // Check if recipe requires a crafting table
                 if (recipe instanceof ShapedRecipe shapedRecipe) {
-                    if (shapedRecipe.isSpecial()) {
+                    List<String> patternRows = new ArrayList<>();
+                    Map<Character, Ingredient> patternKey = new HashMap<>();
+                    if (populateShapedRecipePatternData(shapedRecipe, patternRows, patternKey)) {
+                        // If pattern is larger than 2x2, it requires a crafting table
+                        if (patternRows.size() > 2 || patternRows.stream().anyMatch(row -> row.length() > 2)) {
+                            craftAction.dependencies.individualStates.put(StateTypes.SEE_BLOCK + " " + getBlockName(Blocks.CRAFTING_TABLE), 1);
+                            craftAction.dependencies.individualStates.put(StateTypes.CLOSE_BY + " " + getBlockName(Blocks.CRAFTING_TABLE), 1);
+                            craftAction.requiresCraftingTable = true;
+                        }
+                    }
+                } else if (recipe instanceof ShapelessRecipe shapelessRecipe) {
+                    if (shapelessRecipe.getIngredients().size() > 4) {
                         craftAction.dependencies.individualStates.put(StateTypes.SEE_BLOCK + " " + getBlockName(Blocks.CRAFTING_TABLE), 1);
                         craftAction.dependencies.individualStates.put(StateTypes.CLOSE_BY + " " + getBlockName(Blocks.CRAFTING_TABLE), 1);
                         craftAction.requiresCraftingTable = true;

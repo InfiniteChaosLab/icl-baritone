@@ -173,7 +173,7 @@ public class Planner {
             // Add pruning check after adding new nodes
             if (openNodes.size() > MAX_OPEN_SET_SIZE) {
                 PriorityQueue<Node> prunedQueue = new PriorityQueue<>(
-                    Comparator.comparingInt(n -> n.f)
+                        Comparator.comparingInt(n -> n.f)
                 );
                 for (int i = 0; i < PRUNED_SET_SIZE; i++) {
                     if (!openNodes.isEmpty()) {
