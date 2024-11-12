@@ -29,6 +29,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.awt.*;
 import java.lang.annotation.ElementType;
@@ -50,6 +52,7 @@ import java.util.function.Consumer;
  * @author leijurv
  */
 public final class Settings {
+    private static final Logger LOGGER = LoggerFactory.getLogger("Baritone");
 
     /**
      * Allow Baritone to break blocks
@@ -381,6 +384,12 @@ public final class Settings {
      * Block reach distance
      */
     public final Setting<Float> blockReachDistance = new Setting<>(4.5f);
+
+    /**
+     * How many ticks between breaking a block and starting to break the next block. Default in game is 6 ticks.
+     * Values under 2 will be clamped.
+     */
+    public final Setting<Integer> blockBreakSpeed = new Setting<>(6);
 
     /**
      * How many degrees to randomize the pitch and yaw every tick. Set to 0 to disable
@@ -901,6 +910,13 @@ public final class Settings {
     public final Setting<Integer> maxCachedWorldScanCount = new Setting<>(10);
 
     /**
+     * Mine will not scan for or remember more than this many target locations.
+     * Note that the number of locations retrieved from cache is additionaly
+     * limited by {@link #maxCachedWorldScanCount}.
+     */
+    public final Setting<Integer> mineMaxOreLocationsCount = new Setting<>(64);
+
+    /**
      * Sets the minimum y level whilst mining - set to 0 to turn off.
      * if world has negative y values, subtract the min world height to get the value to put here
      */
@@ -1047,6 +1063,11 @@ public final class Settings {
      * Multiply the cost of breaking a block that's correct in the builder's schematic by this coefficient
      */
     public final Setting<Double> breakCorrectBlockPenaltyMultiplier = new Setting<>(10d);
+
+    /**
+     * Multiply the cost of placing a block that's incorrect in the builder's schematic by this coefficient
+     */
+    public final Setting<Double> placeIncorrectBlockPenaltyMultiplier = new Setting<>(2d);
 
     /**
      * When this setting is true, build a schematic with the highest X coordinate being the origin, instead of the lowest
@@ -1209,8 +1230,12 @@ public final class Settings {
      */
     @JavaOnly
     public final Setting<Consumer<Component>> logger = new Setting<>((msg) -> {
-        final GuiMessageTag tag = useMessageTag.value ? Helper.MESSAGE_TAG : null;
-        Minecraft.getInstance().gui.getChat().addMessage(msg, null, tag);
+        try {
+            final GuiMessageTag tag = useMessageTag.value ? Helper.MESSAGE_TAG : null;
+            Minecraft.getInstance().gui.getChat().addMessage(msg, null, tag);
+        } catch (Throwable t) {
+            LOGGER.warn("Failed to log message to chat: " + msg.getString(), t);
+        }
     });
 
     /**
